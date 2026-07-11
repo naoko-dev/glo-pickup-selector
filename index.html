@@ -561,8 +561,9 @@
 </main>
 
 <footer>
-  データソース：Supabase <code>article_monthly_stats</code>（2024年12月〜）／kintone連携の連載回別実績。
-  「除外」は再掲版・ピックアップ版を含め正規化した作品名単位で判定します。★は10万PV超えの回。
+  データソース：Supabase <code>article_monthly_stats</code>（kintone連携の連載回別実績）。
+  ランキングは配信（初出・再掲）単位で集計するため、同じ作品でも配信ごとに別の行で表示されます。
+  配信の区切りは、タイトルのタグ・話数のリセット・90日以上の配信間隔から自動判定。「除外」は作品単位（全配信を含む）で判定します。★は10万PV超えの回。
 </footer>
 
 <script>
@@ -652,7 +653,7 @@ function render(rows, sort) {
       <td style="text-align:center"><span class="rank ${i < 3 ? "top" : ""}">${i + 1}</span></td>
       <td class="title-cell">
         <div class="work-title">${esc(r.base_title)}</div>
-        <div class="work-meta">最終配信 ${r.last_pub}　▸ クリックで連載回明細</div>
+        <div class="work-meta">配信 ${r.run_start} 〜 ${r.run_end}　▸ クリックで連載回明細</div>
         <div class="band"><span style="width:${pct}%"></span></div>
       </td>
       <td>${fmt(r.episodes)}</td>
@@ -664,15 +665,15 @@ function render(rows, sort) {
       <td>${fmt(r.max_glo_uu)}</td>`;
     tr.children[METRIC_COL[sort]].classList.add("sorted");
     tr.style.animationDelay = `${Math.min(i * 45, 600)}ms`;
-    tr.addEventListener("click", () => toggleDetail(tr, r.base_title));
+    tr.addEventListener("click", () => toggleDetail(tr, r.base_title, r.run_start, r.run_end));
     tr.addEventListener("keydown", (ev) => {
-      if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); toggleDetail(tr, r.base_title); }
+      if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); toggleDetail(tr, r.base_title, r.run_start, r.run_end); }
     });
     tbody.appendChild(tr);
   });
 }
 
-async function toggleDetail(tr, title) {
+async function toggleDetail(tr, title, from, to) {
   const next = tr.nextElementSibling;
   if (next && next.classList.contains("detail-row")) {
     next.remove();
@@ -687,7 +688,7 @@ async function toggleDetail(tr, title) {
   detail.innerHTML = `<td colspan="9"><div class="detail-inner"><div class="loading-ep">連載回データを読み込み中…</div></div></td>`;
   tr.after(detail);
   try {
-    const eps = await rpc("pickup_episodes", { p_base_title: title });
+    const eps = await rpc("pickup_episodes", { p_base_title: title, p_from: from || null, p_to: to || null });
     const rows = eps.map(e => `
       <tr>
         <td>${esc(e.episode || "－")}</td>
@@ -698,7 +699,7 @@ async function toggleDetail(tr, title) {
         <td>${fmt(e.glo_uu)}</td>
       </tr>`).join("");
     detail.querySelector(".detail-inner").innerHTML = `
-      <h3>『${esc(title)}』連載回別実績（全${eps.length}回・★=SN 10万PV超え）</h3>
+      <h3>『${esc(title)}』${from ? `配信 ${from}〜${to}｜` : ""}連載回別実績（全${eps.length}回・★=SN 10万PV超え）</h3>
       <table class="ep">
         <thead><tr><th style="text-align:left">回</th><th style="text-align:left">記事タイトル</th><th>配信日</th><th>SmartNews PV</th><th>GLO PV</th><th>GLO UU</th></tr></thead>
         <tbody>${rows}</tbody>
@@ -802,8 +803,8 @@ async function searchBook() {
     for (const r of rows) {
       if (!books.has(r.base_title)) books.set(r.base_title, new Map());
       const runs = books.get(r.base_title);
-      if (!runs.has(r.book_title)) runs.set(r.book_title, []);
-      runs.get(r.book_title).push(r);
+      if (!runs.has(r.run_no)) runs.set(r.run_no, []);
+      runs.get(r.run_no).push(r);
     }
     const ratios = await getRerunRatios();
     let html = `<div class="search-head">
@@ -812,18 +813,20 @@ async function searchBook() {
     </div>`;
     for (const [base, runs] of books) {
       const allEps = [...runs.values()].flat();
-      const runList = [...runs.entries()].map(([raw, eps]) => {
+      const runList = [...runs.entries()].map(([rno, eps]) => {
+        const raw = eps[0].book_title || "";
         const start = eps.reduce((a, e) => e.pub_date < a ? e.pub_date : a, eps[0].pub_date);
         const end = eps.reduce((a, e) => e.pub_date > a ? e.pub_date : a, eps[0].pub_date);
         const snTotal = eps.reduce((a, e) => a + (e.smartnews_pv || 0), 0);
         const tagMatch = raw.match(/［[^］]*］|【[^】]*】/g);
         const isRerun = !!tagMatch;
-        return { raw, eps, start, end, snTotal, tag: tagMatch ? tagMatch.join("") : "", isRerun };
+        return { rno, raw, eps, start, end, snTotal, tag: tagMatch ? tagMatch.join("") : "", isRerun };
       }).sort((a, b) => a.start.localeCompare(b.start));
+      runList.forEach((r2, i) => { if (i > 0) r2.isRerun = true; });
 
       html += `<div class="book-block"><h2>${esc(base)}</h2>
         ${buildStatStrip(allEps, runList[runList.length - 1].eps.length, ratios)}
-        <p class="runs-note">データ期間内（2024年12月〜）に <strong>${runList.length}回</strong> 配信されています。各配信をクリックすると連載回別PVが開きます。※上記の割合は全配信の連載回を合算して算出。30万PV超えの可能性は、この作品の連載回PV分布と過去74件の再掲実績（前回配信比の分布）を使ったシミュレーション（3,000回試行）による推定値です。</p>`;
+        <p class="runs-note">この作品は <strong>${runList.length}回</strong> 配信されています（初出・再掲を自動で区切って表示）。各配信をクリックすると連載回別PVが開きます。※上記の割合は全配信の連載回を合算して算出。30万PV超えの可能性は、この作品の連載回PV分布と過去74件の再掲実績（前回配信比の分布）を使ったシミュレーション（3,000回試行）による推定値です。</p>`;
       runList.forEach((run, i) => {
         const epRows = run.eps.map(e => `
           <tr>
