@@ -226,8 +226,8 @@
     border-color: var(--gold-deep);
     box-shadow: 0 0 0 4px rgba(201,162,75,0.22);
   }
-  #dateField { display: none; }
-  #dateField.show { display: block; animation: fadeUp 0.4s both; }
+  .dateField { display: none; }
+  .dateField.show { display: block; animation: fadeUp 0.4s both; }
   .actions { display: flex; gap: 10px; align-items: end; }
   button.primary {
     background: var(--red);
@@ -437,6 +437,95 @@
   .stat-sub { font-size: 0.72rem; color: var(--muted); font-weight: 700; }
   .stat-card.hero .stat-sub { color: rgba(243,230,196,0.75); }
 
+  /* ---- 使い方ボタン＆モーダル ---- */
+  .howto-btn {
+    margin-top: 22px;
+    background: transparent;
+    color: var(--gold);
+    border: 2px solid var(--gold);
+    border-radius: 999px;
+    padding: 10px 34px;
+    font: inherit;
+    font-weight: 900;
+    font-size: 0.88rem;
+    letter-spacing: 0.22em;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, transform 0.12s;
+    animation: fadeUp 0.7s 0.55s both;
+  }
+  .howto-btn:hover { background: var(--gold); color: var(--black); transform: translateY(-2px); }
+  .modal {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(20, 13, 9, 0.72);
+    animation: fadeIn 0.25s both;
+  }
+  .modal[hidden] { display: none; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .modal-card {
+    background: var(--cream);
+    border-radius: var(--radius);
+    border-top: 5px solid var(--gold);
+    max-width: 760px;
+    width: 100%;
+    max-height: 86vh;
+    overflow-y: auto;
+    padding: 28px 30px 26px;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.45);
+    animation: fadeUp 0.35s both;
+  }
+  .modal-card h2 {
+    font-family: "Shippori Mincho", serif;
+    font-weight: 800;
+    font-size: 1.4rem;
+    letter-spacing: 0.14em;
+    margin: 0 0 4px;
+    color: var(--black);
+  }
+  .modal-card .modal-lead { font-size: 0.85rem; color: var(--muted); margin: 0 0 18px; }
+  .modal-card h3 {
+    font-family: "Shippori Mincho", serif;
+    font-size: 1.02rem;
+    font-weight: 800;
+    color: var(--red-deep);
+    margin: 22px 0 8px;
+    padding-left: 10px;
+    border-left: 4px solid var(--gold);
+  }
+  .modal-card p, .modal-card li { font-size: 0.88rem; line-height: 1.85; margin: 0 0 8px; }
+  .modal-card ul { padding-left: 20px; margin: 0 0 8px; }
+  .modal-card li { margin-bottom: 5px; }
+  .modal-card .kw { font-weight: 900; color: var(--red-deep); }
+  .modal-card .pill {
+    display: inline-block;
+    background: var(--gold-pale);
+    border-radius: 999px;
+    padding: 0 10px;
+    font-weight: 800;
+    font-size: 0.8rem;
+  }
+  .modal-close-row { text-align: center; margin-top: 20px; }
+  .modal-x {
+    position: sticky;
+    top: 0;
+    float: right;
+    background: var(--black);
+    color: var(--gold-pale);
+    border: none;
+    border-radius: 50%;
+    width: 34px; height: 34px;
+    font-size: 1rem;
+    font-weight: 900;
+    cursor: pointer;
+    transition: transform 0.12s;
+  }
+  .modal-x:hover { transform: rotate(90deg); }
+
   footer { max-width: 1080px; margin: 0 auto 40px; padding: 0 16px; font-size: 0.75rem; color: var(--muted); }
   @media (max-width: 640px) {
     :root { font-size: 14px; }
@@ -469,6 +558,7 @@
     <p class="hero-badge">GOLD LIFE ONLINE</p>
     <h1>GLO 再掲候補セレクター</h1>
     <p class="hero-sub"><span class="en">Pick Up Selector</span>｜過去連載のSmartNews PV・GLO UU実績から、再掲配信の候補作品をさがす</p>
+    <button class="howto-btn" id="howtoBtn">使い方</button>
   </div>
 </header>
 <div class="marquee" aria-hidden="true">
@@ -499,9 +589,13 @@
         <option value="custom">日付を指定して除外</option>
       </select>
     </div>
-    <div class="field" id="dateField">
-      <label for="excludeDate">この日以降に配信があれば除外</label>
+    <div class="field dateField" id="dateField">
+      <label for="excludeDate">① この日以降に配信がある作品を除外</label>
       <input type="date" id="excludeDate" value="2026-01-01">
+    </div>
+    <div class="field dateField">
+      <label for="excludeBefore">② この日以前に終了した配信を除外</label>
+      <input type="date" id="excludeBefore">
     </div>
     <div class="field">
       <label for="limit">表示する作品数</label>
@@ -560,6 +654,47 @@
   </div>
 </main>
 
+<div class="modal" id="howtoModal" hidden role="dialog" aria-modal="true" aria-labelledby="howtoTitle">
+  <div class="modal-card">
+    <button class="modal-x" id="howtoClose" aria-label="閉じる">×</button>
+    <h2 id="howtoTitle">使い方ガイド</h2>
+    <p class="modal-lead">GLO 再掲候補セレクターは、過去連載の実績データから再掲（ピックアップ）配信の候補をさがすツールです。データはSupabaseから常に最新の状態で取得されます。</p>
+
+    <h3>1. 再掲候補ランキング（RANKING）</h3>
+    <ul>
+      <li><span class="kw">ランキング指標</span>：並べ替えの基準を選びます。<span class="pill">平均PV</span>は1話あたりの強さ、<span class="pill">合計PV</span>は配信全体のボリューム、<span class="pill">最高PV</span>は「跳ねた回」の大きさを表します。SmartNews向けの再掲候補なら平均PV、サイト内で読まれる作品を探すならGLO平均UUがおすすめです。</li>
+      <li><span class="kw">配信済み作品の除外</span>：「今年配信済みの作品を除外」が基本設定です。「日付を指定して除外」を選ぶと入力欄が2つ開き、<span class="pill">① この日以降に配信がある作品を除外</span>（最近配信したばかりの作品を外す）と<span class="pill">② この日以前に終了した配信を除外</span>（古い配信を外す）を、片方だけでも両方でも使えます。</li>
+      <li><span class="kw">表示する作品数</span>：5〜100件から選べます。</li>
+      <li>「抽出する」を押すと結果が表示されます。<span class="kw">作品名をクリック</span>すると、その配信の連載回ごとのPV明細が開きます（★はSmartNews 10万PV超えの回）。</li>
+    </ul>
+    <p>ランキングは<span class="kw">配信単位</span>です。同じ作品でも初出と再掲は別の行として表示され、それぞれの期間の実績だけで集計されます。そのため再掲回数の多い作品が不当に有利になることはありません。</p>
+
+    <h3>2. 著書名検索（SEARCH）</h3>
+    <ul>
+      <li>著書名の一部（2文字以上）を入力して「連載回PVを見る」を押すと、その作品の<span class="kw">配信履歴がすべて</span>表示されます。</li>
+      <li>配信は古い順に並び、初出以外には<span class="pill">再掲</span>バッジが付きます。各配信の見出しに配信開始日・話数・SN合計PVが表示され、クリックすると連載回別の明細が開きます。</li>
+      <li>見終わったら「検索をクリアして他の作品を見る」ボタンで次の検索へ移れます。</li>
+    </ul>
+
+    <h3>3. 作品カードの3つの数値</h3>
+    <ul>
+      <li><span class="kw">SN 5万PV以上／10万PV以上の連載回</span>：その作品の全連載回（全配信の合算）のうち、5万・10万PVを超えた回の割合です。跳ねる力の目安になります。</li>
+      <li><span class="kw">再掲時に累計30万PVを超える可能性</span>：この作品をいま再掲した場合の推定確率です。この作品の連載回PVのばらつきと、過去の再掲実績（再掲は前回配信の何倍のPVが出たかの分布）を組み合わせた3,000回のシミュレーションで算出しています。あくまで過去実績にもとづく参考値で、配信時期やタイトルの付け直しによって実際の結果は変わります。</li>
+    </ul>
+
+    <h3>4. データについて</h3>
+    <ul>
+      <li>データソースはkintone連携の連載回別実績（Supabase <code>article_monthly_stats</code>）です。毎月のデータ更新は自動で反映され、このページ側の作業は不要です。</li>
+      <li>配信の区切り（初出と再掲の判定）は、タイトルのタグ・話数のリセット・90日以上の配信間隔から自動判定しています。</li>
+      <li>数値の見え方がおかしい場合は、ブラウザの強制再読み込み（Ctrl＋F5）をお試しください。</li>
+    </ul>
+
+    <div class="modal-close-row">
+      <button class="primary" id="howtoClose2">閉じる</button>
+    </div>
+  </div>
+</div>
+
 <footer>
   データソース：Supabase <code>article_monthly_stats</code>（kintone連携の連載回別実績）。
   ランキングは配信（初出・再掲）単位で集計するため、同じ作品でも配信ごとに別の行で表示されます。
@@ -575,7 +710,8 @@ const fmt = (n) => n == null ? "－" : Number(n).toLocaleString("ja-JP");
 let currentRows = [];
 
 $("exclude").addEventListener("change", () => {
-  $("dateField").classList.toggle("show", $("exclude").value === "custom");
+  document.querySelectorAll(".dateField").forEach(el =>
+    el.classList.toggle("show", $("exclude").value === "custom"));
 });
 
 async function rpc(fn, args) {
@@ -595,14 +731,14 @@ async function rpc(fn, args) {
   return res.json();
 }
 
-function excludeDateParam() {
+function excludeParams() {
   const mode = $("exclude").value;
-  if (mode === "none") return null;
+  if (mode === "none") return { after: null, before: null };
   if (mode === "this_year") {
     const y = new Date().getFullYear();
-    return `${y}-01-01`;
+    return { after: `${y}-01-01`, before: null };
   }
-  return $("excludeDate").value || null;
+  return { after: $("excludeDate").value || null, before: $("excludeBefore").value || null };
 }
 
 async function run() {
@@ -612,17 +748,21 @@ async function run() {
   $("runBtn").disabled = true;
   try {
     const sort = $("metric").value;
+    const ex = excludeParams();
     const rows = await rpc("pickup_candidates", {
-      p_exclude_from: excludeDateParam(),
+      p_exclude_from: ex.after,
+      p_exclude_before: ex.before,
       p_min_episodes: 1,
       p_limit: Number($("limit").value),
       p_sort: sort
     });
     currentRows = rows;
     render(rows, sort);
-    const cond = excludeDateParam();
-    status.textContent = `${rows.length}作品を抽出しました（指標：${$("metric").selectedOptions[0].text}` +
-      (cond ? `／${cond}以降に配信のある作品を除外）` : `／除外なし）`);
+    const conds = [];
+    if (ex.after) conds.push(`${ex.after}以降に配信のある作品を除外`);
+    if (ex.before) conds.push(`${ex.before}以前に終了した配信を除外`);
+    status.textContent = `${rows.length}件を抽出しました（指標：${$("metric").selectedOptions[0].text}／` +
+      (conds.length ? conds.join("・") : "除外なし") + `）`;
   } catch (e) {
     status.textContent = e.message;
     status.classList.add("error");
@@ -877,6 +1017,16 @@ function clearSearch() {
 $("clearSearchBtn").addEventListener("click", clearSearch);
 
 $("runBtn").addEventListener("click", run);
+
+/* 使い方モーダル */
+const modal = $("howtoModal");
+function openHowto() { modal.hidden = false; document.body.style.overflow = "hidden"; }
+function closeHowto() { modal.hidden = true; document.body.style.overflow = ""; }
+$("howtoBtn").addEventListener("click", openHowto);
+$("howtoClose").addEventListener("click", closeHowto);
+$("howtoClose2").addEventListener("click", closeHowto);
+modal.addEventListener("click", (ev) => { if (ev.target === modal) closeHowto(); });
+document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && !modal.hidden) closeHowto(); });
 
 /* スクロールでふわっと出現 */
 const io = new IntersectionObserver((entries) => {
